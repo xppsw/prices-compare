@@ -149,23 +149,26 @@ function browseHTML(query, products) {
 </body></html>`;
 }
 
-// 调试：看 HTML 里有什么
+// 调试：Google Shopping
 app.get('/debug', async (req, res) => {
-  const r = await fetch('https://stockx.com/search?s=converse', {
-    headers: { 'User-Agent': 'Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)' },
+  const r = await fetch('https://www.google.com/search?tbm=shop&q=converse+sneakers&hl=en', {
+    headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' },
   });
   const html = await r.text();
-  // 搜价格
+  // 搜商品链接和价格
   const prices = html.match(/\$\d+(?:\.\d{2})?/g) || [];
-  // 搜商品链接
-  const urls = html.match(/\/[\w-]+\/[\w-]+-[a-f0-9]{8,}/g) || [];
+  // Google Shopping 特有的 class
+  const hasResults = html.includes('sh-dgr__grid-result') || html.includes('sh-pr__product');
+  const hasProductTitle = (html.match(/class="[^"]*tA2FCc[^"]*"/g) || []).length;
   res.json({
+    googleStatus: r.status,
     htmlLen: html.length,
-    uniquePrices: [...new Set(prices)].slice(0, 20),
-    uniqueUrls: [...new Set(urls)].slice(0, 10),
-    hasNextData: !!html.match(/__NEXT_DATA__/),
-    hasProductList: !!html.match(/"products"\s*:/),
-    title: html.match(/<title>([^<]+)<\/title>/)?.[1] || '?',
+    uniquePrices: [...new Set(prices)].slice(0, 15),
+    hasResults,
+    hasProductTitle,
+    title: (html.match(/<title>([^<]+)<\/title>/) || [])[1] || '?',
+    // 看是不是被验证码挡了
+    hasCaptcha: html.includes('captcha') || html.includes('recaptcha'),
   });
 });
 
