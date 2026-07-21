@@ -263,23 +263,29 @@ app.get('/api/compare', async (req, res) => {
   });
 });
 
-// 调试：直接看 StockX 返回什么
+// 调试：测试多个 StockX API 地址
 app.get('/debug', async (req, res) => {
-  try {
-    const u = `https://stockx.com/api/browse?productCategory=sneakers&_search=converse&limit=3`;
-    const r = await fetch(u, {
-      headers: { 'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15', 'Accept': 'application/json' },
-    });
-    const text = await r.text();
-    res.json({
-      stockx_status: r.status,
-      ok: r.ok,
-      body_len: text.length,
-      body_preview: text.substring(0, 800),
-    });
-  } catch (e) {
-    res.json({ error: e.message });
+  const results = {};
+  const urls = [
+    ['browse_old', 'https://stockx.com/api/browse?productCategory=sneakers&_search=converse&limit=3'],
+    ['browse_no_cat', 'https://stockx.com/api/browse?_search=converse&limit=3'],
+    ['search_v2', 'https://stockx.com/api/p/search?query=converse&limit=3'],
+    ['catalog', 'https://stockx.com/api/rest/v2/catalog/search?query=converse&limit=3'],
+    ['products_v2', 'https://stockx.com/api/rest/v2/products/search?search=converse&limit=3'],
+  ];
+
+  for (const [name, url] of urls) {
+    try {
+      const r = await fetch(url, {
+        headers: { 'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15', 'Accept': 'application/json' },
+      });
+      const text = await r.text();
+      results[name] = { status: r.status, len: text.length, preview: text.substring(0, 200) };
+    } catch (e) {
+      results[name] = { error: e.message };
+    }
   }
+  res.json(results);
 });
 
 app.listen(PORT, () => console.log(`🏀 Sneaker Deal Finder running on port ${PORT}`));
