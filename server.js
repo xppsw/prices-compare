@@ -263,4 +263,23 @@ app.get('/api/compare', async (req, res) => {
   });
 });
 
+// 调试：直接看 StockX 返回什么
+app.get('/debug', async (req, res) => {
+  try {
+    const u = `https://stockx.com/api/browse?productCategory=sneakers&_search=converse&limit=3`;
+    const r = await fetch(u, {
+      headers: { 'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15', 'Accept': 'application/json' },
+    });
+    const text = await r.text();
+    res.json({
+      stockx_status: r.status,
+      ok: r.ok,
+      body_len: text.length,
+      body_preview: text.substring(0, 800),
+    });
+  } catch (e) {
+    res.json({ error: e.message });
+  }
+});
+
 app.listen(PORT, () => console.log(`🏀 Sneaker Deal Finder running on port ${PORT}`));
