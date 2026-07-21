@@ -295,10 +295,10 @@ app.get('/debug', async (req, res) => {
     results.ebay = { status: r.status, len: (await r.text()).length };
   } catch (e) { results.ebay = { error: e.message }; }
 
-  // StockX HTML — 提取 __NEXT_DATA__ 里的商品数据
+  // StockX HTML — 试 Googlebot UA（拿到 SEO 版本，数据更全）
   try {
     const r = await fetch('https://stockx.com/search?s=converse', {
-      headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36', 'Accept': 'text/html' },
+      headers: { 'User-Agent': 'Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)', 'Accept': 'text/html' },
     });
     const html = await r.text();
     // 提取 Next.js SSR 数据
