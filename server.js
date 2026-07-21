@@ -263,28 +263,46 @@ app.get('/api/compare', async (req, res) => {
   });
 });
 
-// 调试：测试多个 StockX API 地址
+// 调试：测试所有可用的数据源
 app.get('/debug', async (req, res) => {
   const results = {};
-  const urls = [
-    ['browse_old', 'https://stockx.com/api/browse?productCategory=sneakers&_search=converse&limit=3'],
-    ['browse_no_cat', 'https://stockx.com/api/browse?_search=converse&limit=3'],
-    ['search_v2', 'https://stockx.com/api/p/search?query=converse&limit=3'],
-    ['catalog', 'https://stockx.com/api/rest/v2/catalog/search?query=converse&limit=3'],
-    ['products_v2', 'https://stockx.com/api/rest/v2/products/search?search=converse&limit=3'],
-  ];
 
-  for (const [name, url] of urls) {
-    try {
-      const r = await fetch(url, {
-        headers: { 'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15', 'Accept': 'application/json' },
-      });
-      const text = await r.text();
-      results[name] = { status: r.status, len: text.length, preview: text.substring(0, 200) };
-    } catch (e) {
-      results[name] = { error: e.message };
-    }
-  }
+  // GOAT API
+  try {
+    const r = await fetch('https://www.goat.com/web-api/v1/search', {
+      method: 'POST',
+      headers: { 'User-Agent': 'Mozilla/5.0', 'Accept': 'application/json', 'Content-Type': 'application/json' },
+      body: JSON.stringify({ query: 'converse', page: 0, sort: 'price_asc' }),
+    });
+    const text = await r.text();
+    results.goat = { status: r.status, len: text.length, preview: text.substring(0, 200) };
+  } catch (e) { results.goat = { error: e.message }; }
+
+  // Farfetch API
+  try {
+    const r = await fetch('https://www.farfetch.com/plpslice/search?query=converse&view=product&sort=price-asc', {
+      headers: { 'User-Agent': 'Mozilla/5.0', 'Accept': 'application/json' },
+    });
+    const text = await r.text();
+    results.farfetch = { status: r.status, len: text.length, preview: text.substring(0, 200) };
+  } catch (e) { results.farfetch = { error: e.message }; }
+
+  // eBay search HTML
+  try {
+    const r = await fetch('https://www.ebay.com/sch/i.html?_nkw=converse+chuck+70&_sop=15', {
+      headers: { 'User-Agent': 'Mozilla/5.0', 'Accept': 'text/html' },
+    });
+    results.ebay = { status: r.status, len: (await r.text()).length };
+  } catch (e) { results.ebay = { error: e.message }; }
+
+  // StockX search HTML page
+  try {
+    const r = await fetch('https://stockx.com/search?s=converse', {
+      headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36', 'Accept': 'text/html' },
+    });
+    results.stockx_html = { status: r.status, len: (await r.text()).length };
+  } catch (e) { results.stockx_html = { error: e.message }; }
+
   res.json(results);
 });
 
