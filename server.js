@@ -295,12 +295,23 @@ app.get('/debug', async (req, res) => {
     results.ebay = { status: r.status, len: (await r.text()).length };
   } catch (e) { results.ebay = { error: e.message }; }
 
-  // StockX search HTML page
+  // StockX HTML — 看页面结构
   try {
     const r = await fetch('https://stockx.com/search?s=converse', {
       headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36', 'Accept': 'text/html' },
     });
-    results.stockx_html = { status: r.status, len: (await r.text()).length };
+    const html = await r.text();
+    // 找商品相关数据
+    const titleMatch = html.match(/<title>([^<]+)<\/title>/);
+    const jsonScripts = [...html.matchAll(/<script[^>]*type="application\/json"[^>]*>([^<]+)<\/script>/g)].map(m => m[1].substring(0, 300));
+    const nextData = html.match(/<script id="__NEXT_DATA__"[^>]*>([^<]{1,3000})/);
+    results.stockx_html = {
+      status: r.status,
+      title: titleMatch ? titleMatch[1] : '?',
+      jsonScripts: jsonScripts.slice(0, 5),
+      nextData: nextData ? nextData[1].substring(0, 1000) : 'none',
+      hasNextData: !!nextData,
+    };
   } catch (e) { results.stockx_html = { error: e.message }; }
 
   res.json(results);
