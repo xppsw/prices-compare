@@ -337,8 +337,26 @@ app.get('/debug', async (req, res) => {
             })),
           };
         } else {
-          // dump top-level keys
-          results.stockx_props = { topKeys: Object.keys(data.props?.pageProps || {}).slice(0, 20) };
+          // 深入看 req 的结构
+          const req = data.props?.pageProps?.req;
+          results.stockx_req = {
+            reqKeys: req ? Object.keys(req).slice(0, 20) : 'none',
+            reqType: typeof req,
+          };
+          if (req) {
+            // 遍历找数组
+            function findArrays(obj, path='', depth=0) {
+              if (depth > 4 || !obj || typeof obj !== 'object') return;
+              for (const k of Object.keys(obj)) {
+                const np = path ? path + '.' + k : k;
+                if (Array.isArray(obj[k]) && obj[k].length > 0) {
+                  results['arr_'+np] = { len: obj[k].length, sampleKeys: typeof obj[k][0] === 'object' ? Object.keys(obj[k][0]).slice(0, 8) : 'not object' };
+                }
+                if (depth < 3) findArrays(obj[k], np, depth+1);
+              }
+            }
+            findArrays(req);
+          }
         }
       } catch (e) {
         results.stockx_parse_error = e.message;
