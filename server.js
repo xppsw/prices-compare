@@ -295,23 +295,57 @@ app.get('/debug', async (req, res) => {
     results.ebay = { status: r.status, len: (await r.text()).length };
   } catch (e) { results.ebay = { error: e.message }; }
 
-  // StockX HTML — 看页面结构
+  // StockX HTML — 提取 __NEXT_DATA__ 里的商品数据
   try {
     const r = await fetch('https://stockx.com/search?s=converse', {
       headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36', 'Accept': 'text/html' },
     });
     const html = await r.text();
-    // 找商品相关数据
-    const titleMatch = html.match(/<title>([^<]+)<\/title>/);
-    const jsonScripts = [...html.matchAll(/<script[^>]*type="application\/json"[^>]*>([^<]+)<\/script>/g)].map(m => m[1].substring(0, 300));
-    const nextData = html.match(/<script id="__NEXT_DATA__"[^>]*>([^<]{1,3000})/);
-    results.stockx_html = {
-      status: r.status,
-      title: titleMatch ? titleMatch[1] : '?',
-      jsonScripts: jsonScripts.slice(0, 5),
-      nextData: nextData ? nextData[1].substring(0, 1000) : 'none',
-      hasNextData: !!nextData,
-    };
+    // 提取 Next.js SSR 数据
+    const m = html.match(/<script id="__NEXT_DATA__"[^>]*type="application\/json"[^>]*>([^<]+)<\/script>/);
+    if (m) {
+      try {
+        const data = JSON.parse(m[1]);
+        // 递归找 products
+        function find(obj, key, depth=0) {
+          if (depth > 6 || !obj || typeof obj !== 'object') return null;
+          if (obj[key]) return obj[key];
+          for (const k of Object.keys(obj)) {
+            if (Array.isArray(obj[k])) {
+              for (const item of obj[k]) {
+                const r = find(item, key, depth+1);
+                if (r) return r;
+              }
+            } else {
+              const r = find(obj[k], key, depth+1);
+              if (r) return r;
+            }
+          }
+          return null;
+        }
+        const products = find(data.props?.pageProps, 'products');
+        if (products) {
+          results.stockx_products = {
+            found: true,
+            count: products.length,
+            sample: products.slice(0, 3).map(p => ({
+              name: p.name || p.title || p.productName,
+              price: p.price || p.lowestAsk,
+              urlKey: p.urlKey || p.slug,
+              hasImage: !!p.media,
+              keys: Object.keys(p).slice(0, 15),
+            })),
+          };
+        } else {
+          // dump top-level keys
+          results.stockx_props = { topKeys: Object.keys(data.props?.pageProps || {}).slice(0, 20) };
+        }
+      } catch (e) {
+        results.stockx_parse_error = e.message;
+      }
+    } else {
+      results.stockx_no_nextdata = true;
+    }
   } catch (e) { results.stockx_html = { error: e.message }; }
 
   res.json(results);
