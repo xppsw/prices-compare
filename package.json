@@ -1,0 +1,12 @@
+{
+  "name": "sneaker-deal-finder",
+  "version": "2.0.0",
+  "description": "🏀 海外正品球鞋比价 — 品牌浏览 + 图墙选款 + 跨平台比价",
+  "type": "module",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.21.0"
+  }
+}
